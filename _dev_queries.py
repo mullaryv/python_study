@@ -1,14 +1,18 @@
 # formats deployment log into some of a nice view
 
 # define text to replace with acronyms
-SUSPENDED_LAYOUT = "is being loaded in suspended state because In index"
 SI = "~SI"
-SUSPENDED_SUPERKEY = "is being loaded in suspended state because SuperKey"
 SSK = "~SK"
-SUSPENDED_ROXIEKEY = "is being loaded in suspended state because Roxie server key file"
 SRK = "~SR"
-SUSPENDED_PACKAGE = "is being loaded in suspended state because PACKAGE_ERROR: Compulsory SuperFile"
 SP = "~SP"
+
+# dictionary: defines text replacements
+replacements = {
+  SI :"is being loaded in suspended state because In index",
+  SSK:"is being loaded in suspended state because SuperKey",
+  SRK:"is being loaded in suspended state because Roxie server key file",
+  SP :"is being loaded in suspended state because PACKAGE_ERROR: Compulsory SuperFile"
+}
 
 # read input log and split it into distinguished lines
 fin = open ("_dev.log", 'r')
@@ -29,23 +33,12 @@ for line in fin:
   if (q_ind >= 0):
     line_tmp = line[q_ind+7:]
 
-  # replace all known long description with abbreviations
-  q_ind = line_tmp.find(SUSPENDED_LAYOUT, 1)
-  if (q_ind >= 0):
-    line_tmp = line_tmp.replace (SUSPENDED_LAYOUT, SI)
-
-  q_ind = line_tmp.find(SUSPENDED_SUPERKEY, 1)
-  if (q_ind >= 0):
-    line_tmp = line_tmp.replace (SUSPENDED_SUPERKEY, SSK)
-
-  q_ind = line_tmp.find(SUSPENDED_ROXIEKEY, 1)
-  if (q_ind >= 0):
-    line_tmp = line_tmp.replace (SUSPENDED_ROXIEKEY, SRK)
-
-  q_ind = line_tmp.find(SUSPENDED_PACKAGE, 1)
-  if (q_ind >= 0):
-    line_tmp = line_tmp.replace (SUSPENDED_PACKAGE, SP)
-
+  # replace all known long description with abbreviations;
+  # only one will be there, but there's no need to optimize it
+  line_tmp = line_tmp.replace (replacements[SI], SI)
+  line_tmp = line_tmp.replace (replacements[SSK], SSK)
+  line_tmp = line_tmp.replace (replacements[SRK], SRK)
+  line_tmp = line_tmp.replace (replacements[SP], SP)
     
   # add ameliorated string to the result list
   new_text.append(line_tmp)
@@ -66,6 +59,7 @@ for line in new_text:
 
     
 # now format:
+# TODO: most likely there'sa better way, but so far it suffices
 spaces = "                                        "
 format_text = []
 for line in new_text:
@@ -83,10 +77,10 @@ fout = open ("_dev.res", 'w')
 # write legend and helpers
 fout.write ("Longest query name: " + str(max_len) + " chars: " + long_query)
 fout.write ("\n\nLegend:")
-fout.write ("\n\t" + SI  + " == " + SUSPENDED_LAYOUT)
-fout.write ("\n\t" + SSK + " == " + SUSPENDED_SUPERKEY)
-fout.write ("\n\t" + SRK + " == " + SUSPENDED_ROXIEKEY)
-fout.write ("\n\t" + SP + " == " + SUSPENDED_PACKAGE)
+fout.write ("\n\t" + SI  + " == " + replacements[SI])
+fout.write ("\n\t" + SSK + " == " + replacements[SSK])
+fout.write ("\n\t" + SRK + " == " + replacements[SRK])
+fout.write ("\n\t" + SP + " == " + replacements[SP])
 fout.write ("\n\n")
 
 
