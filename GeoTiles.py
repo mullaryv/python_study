@@ -26,14 +26,43 @@ if __name__ == '__main__':
         _cos = math.cos ((90 - lat2)*rad) * math.cos ((90 - lat1)*rad) + math.sin ((90 - lat2)*rad) * math.sin ((90 - lat1)*rad) * math.cos ((lon2 - lon1)*rad)
         return math.acos (_cos)*EARTH_RAD
 
- 
+
+    # Returns a longitude  of an intersection of circumference with a given latitude;
+    # this is needed to find out the boundaries of a grid, to save some calculations.
+    def longitudeDistance (lat, c_lat, c_long, radius) :
+
+        # Calculations on the sphere are more precise, and don't seem to have a performance impact,
+        # but so far I prefer more simple Cartezian formula;
+        # in both cases there's an uncertainty in the proximity of the Poles (division by zero).
+        '''
+        # ------------- on the plane ------------- 
+        # Vertical distance from center to quadrant's bottom [miles]
+        h = (lat - c_lat) * DEGREE_LAT
+        # horisontal distance to the left border (i.e. at the same latitude) [miles]
+        dist = math.sqrt (radius ** 2 - h ** 2)
+
+        # convert to degrees: this depends on the current latitude
+        d_long = dist * 360.0 / (EARTH_CIRC*math.cos (current_lat * rad))    #[degrees]
+        '''
+
+        # ------------- on the sphere ------------- 
+        c1 = math.cos ((radius / EARTH_RAD))
+        c2 = math.cos ((90 - lat)*rad) * math.cos ((90 - c_lat)*rad)
+        s1 = math.sin ((90 - lat)*rad) * math.sin ((90 - c_lat)*rad)
+
+        c3 =  (c1 - c2) / s1
+        d_long =  math.acos (c3) / rad
+
+        return d_long
+
+
     # ========================================================================
     # ================== input (latitude, longitude, radius ==================
     # ========================================================================
 
     #in_str = input ('lat, long, radius: ')
     #in_params = in_str.split()
-    in_params=[25.5, -80.1, 10.0]
+    in_params=[25.5, -80.1, 20.0]
 
     #TODO: check input validity
     c_lat = float (in_params[0])       # degrees
@@ -89,16 +118,7 @@ if __name__ == '__main__':
         #print('j:', j, 'current lat:', current_lat)
         
         # Calculate the intersection of current latitude with the circumference.
-        # This is the only calculation on a plane;
-        # I can change it to the calculation on a sphere, if proved to be noticeably inacurate
-
-        vert =  (current_lat - c_lat) * DEGREE_LAT      # vertical distance from center to lower end of cell in each cycle
-
-        # horisontal distance to the left border (i.e. same latitude)
-        d = math.sqrt (radius ** 2 - vert ** 2)         #     [miles]
- 
-        # convert to degrees: this depends on the current latitude
-        d_long = d * 360.0 / (EARTH_CIRC*math.cos (current_lat * rad))    #[degrees]
+        d_long = longitudeDistance (current_lat, c_lat, c_long, radius)
 
         # calculate the left quadrant and convert it to xy-grid
         ql = quadrant (c_long - d_long)
@@ -125,7 +145,7 @@ if __name__ == '__main__':
             if (ro <= radius):
                 grid[j][i] = 2
             else:
-                grid[j][i] = 1            # border case: all points need to be tested
+                grid[j][i] = '-'            # border case: all points need to be tested
             #TODO: optimize: no need to check the internal quadrants
             q_current_x += 1
 
