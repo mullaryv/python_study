@@ -39,7 +39,7 @@ board = "a2 a4 b7 c8 f3 g3 h5 h6"
 
 # process board configuration: convert to upper string, validate
 board_lst = board.upper().split()
-for square in range (board_lst):
+for square in (board_lst):
   if not isValid(square):
     print ('invalid chess square entry: ', square)
     exit (-10)
