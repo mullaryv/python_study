@@ -26,13 +26,9 @@ def toOrdinal (square) :
 
 # converts an ordinal (integer) to a 2-char square name
 def toSquare (ordinal) :
-  r = ordinal % 8
-  num = 1 + math.floor(ordinal / 8)
-  if r == 0:
-    num -= 1
-  let = 'H'
-  if r > 0: 
-    let= chr(ord ('A') + r - 1)
+  n = ordinal - 1
+  num = 1 + math.floor (n/8)
+  let = chr(ord ('A') + n%8)
   return let + str(num)
 
 
@@ -45,8 +41,8 @@ def sum64 (lst) :
   
   
 # read chess board configuration
-#board = "a2 a4 b7 c8 f3 g3 h5 h6"
-board = "c5"
+board = "a2 a4 b7 c8 f3 g3 h5 h6"
+#board = "c5"
 # some corner cases: [b1,f6] (b1 selected); [f6] (a1); [c5] (c5)
 
 # process board configuration: convert to upper string, validate
@@ -100,12 +96,12 @@ if (sel_square == rem): #nothing to do
 else:
   if num_add not in (marbles):           #add
     marbles.append (num_add)
-    print ("    added:", num_add)
+    print ("    added:" + str(num_add) +" (" + toSquare (num_add) + ")")
     done = True
   else:                                  #remove
     if num_remove in (marbles):
       marbles.remove (num_remove)
-      print ("    removed:", num_remove)
+      print ("    removed:" + str(num_remove) +" (" + toSquare (num_remove) + ")")
       done = True
 
 if done:
