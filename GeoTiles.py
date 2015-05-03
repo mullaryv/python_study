@@ -2,6 +2,13 @@
 Created on Jun 17, 2014
 
 @author: Myullyari
+
+Covers a circular area with a "square" (tangial latitude/longitude lines),
+breaks this square into smaller quadrants and marks qudrants, according to:
+a) quadrant's points don't belong to the area,
+b) quadrant's points certainly inside the area,
+c) each quadrant's point must be checked individually.
+
 '''
 
 if __name__ == '__main__':
@@ -146,7 +153,8 @@ if __name__ == '__main__':
                 grid[j][i] = 2
             else:
                 grid[j][i] = '-'            # border case: all points need to be tested
-            #TODO: optimize: no need to check the internal quadrants
+            # this can be optimized -- no need to check the internal quadrants;
+            # but so far performance is more than sufficient
             q_current_x += 1
 
         # next latitude line
