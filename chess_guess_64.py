@@ -27,9 +27,7 @@ def toOrdinal (square) :
 # converts an ordinal (integer) to a 2-char square name
 def toSquare (ordinal) :
   n = ordinal - 1
-  num = 1 + math.floor (n/8)
-  let = chr(ord ('A') + n%8)
-  return let + str(num)
+  return chr(ord ('A') + n%8) + str(1 + math.floor (n/8))
 
 
 # sum of all numbered squares in the list
@@ -41,9 +39,10 @@ def sum64 (lst) :
   
   
 # read chess board configuration
-board = "a2 a4 b7 c8 f3 g3 h5 h6"
+board = "g1 h1 a8"
+#board = "a2 a4 b7 c8 f3 g3 h5 h6"
 #board = "c5"
-# some corner cases: [b1,f6] (b1 selected); [f6] (a1); [c5] (c5)
+# some corner cases: [b1,f6] (b1); [f6] (a1); [c5] (c5)
 
 # process board configuration: convert to upper string, validate
 board_lst = board.upper().split()
@@ -68,7 +67,6 @@ if not isValid(sel_str):
 sel_square = toOrdinal (sel_str)  #ordinal number of selected square
 
 sub_board = 2080 - board_sum
-#rem = sub_board - math.floor (sub_board / 64)*64
 rem = math.floor (sub_board % 64)
 
 print ("\n  initial board: ", board_lst, "  selected = " + sel_str + " (" + str(sel_square) + ")")
@@ -105,8 +103,7 @@ else:
       done = True
 
 if done:
-  print ("  modified board: " + str (marbles))
-#  print ("              or: " + str (marbles))
+  print ("  modified board: " + str (list (map (toSquare, marbles))) )
 else:
   print ("  !error: cannot do anything: ", num_1, ", ", num2)
   exit (-100)

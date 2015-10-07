@@ -61,7 +61,8 @@ sel_bits = to6bits (sel_str)
 board_sum_plus = board_sum ^ sel_bits
 new_square= toSquare (board_sum_plus)
 
-print ("\n  selected: " + sel_str + "  (" + str(sel_bits) + ")")
+print ("\n  initial board: ", board_lst, "  selected = " + sel_str + " (" + str(sel_bits) + ")")
+#print ("\n  selected: " + sel_str + "  (" + str(sel_bits) + ")")
 print ("  board XOR updated: " + str (board_sum_plus))
 print ("  square to change: " + new_square)
 
