@@ -226,11 +226,9 @@ if __name__ == '__main__':
                   cnt_skip += (num_segments - 1 - s)
                   break
 
-#TODO: use else                  
                 # if intersection occurs above the vertex start, need to check previous segment
                 if (p_lat > start_lat):
 
-#                  if debug: print (" LeftRight=", LeftRight)
                   if ((LeftRight == 1) and (p_long > end_long)):
                     cnt_intersections += 1
                     LeftRight = 0
@@ -242,16 +240,11 @@ if __name__ == '__main__':
                     if debug: print (" vertex-start:left +")
 
                   # if we're at the segment's start and there was no previous intersection,
-                  # then need to check intersection at the end of last segment
+                  # then postpone the decision until the last segment is reached
                   else:
                     if debug: print (" vertex-start:zero")
-                    prev_segment = segments[num_segments-1]
-                    if (
-                        ((p_long > end_long) and (p_long < prev_segment[0][0]))
-                        or
-                        ((p_long < end_long) and (p_long > prev_segment[0][0]))
-                       ):
-                       cnt_intersections += 1
+                    if (p_long > end_long): FirstLeftRight = -1
+                    else: FirstLeftRight = 1
                        
                 else: # ignore, if point is under the vertex
                   if debug: print (" vertex-start")
@@ -281,6 +274,10 @@ if __name__ == '__main__':
 
 
         # final decision: point is outside of the polygon if number of intersections even 
+        # check if there was an intersection on the corner between first and last segments
+        if ((LeftRight != 0) and (LeftRight + FirstLeftRight == 0)):
+          cnt_intersections += 1
+
         if (cnt_intersections % 2 == 1 or belongs):
           belongs = True
           if debug: print (" included")
@@ -298,7 +295,6 @@ if __name__ == '__main__':
     time_proc = time.time() - time_loaded
     print ("time processed: ", time_proc, "sec.")
 
-    #TODO: find a way to use filter
     cnt_included = 0
     print("\ndifferences:")
     cnt_diff = 0
