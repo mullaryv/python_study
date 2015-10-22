@@ -5,7 +5,9 @@ Created on Oct 07, 2015
 '''
 
 if __name__ == '__main__':
+    import sys
     import math
+    import time
 
     EARTH_RAD = 3959.0                  # mean Earth radius [miles]
     EARTH_CIRC = 2*math.pi*EARTH_RAD    # equator and meridians circumference [miles]
@@ -23,14 +25,25 @@ if __name__ == '__main__':
         return str_in !=""
 
 
+    time_start = time.time()
 
+    args_len = len(sys.argv)
+    if (args_len < 3):
+      print ("Error: usage:", sys.argv[0], "<polygon file> <test points file> [/d]")
+      exit(-1)
+
+    file_poly = open (sys.argv[1], 'r')
+    file_points = open (sys.argv[2], 'r')
+
+#    file_poly = open ("polygon.wkt", 'r')
+#    file_points = open ("x_points_0.txt", 'r')
+
+    debug = (args_len > 3) and (sys.argv[3] == "/d")
     # ==================================================================
     #                     create a list of segments                    
     # ==================================================================
     
     # read a polygon from a file; must be in WKT format    
-    file_poly = open ("polygon.wkt", 'r')
-
     str_poly = "#"
     while (str_poly[0] == "#"):                #comments start from '#'
       str_poly = file_poly.readline()
@@ -50,9 +63,10 @@ if __name__ == '__main__':
     print ("points in polygon: ", num_poly_points)
     print ("number of segments:", num_segments)
 
-    #print ("polygon points:")
-    #for i in range(num_poly_points):
-    #    print (i, ": ", coords_pairs[i])
+    if debug:
+      print ("\npolygon vertices:")
+      for i in range(num_poly_points):
+        print ("  ", i, ":", coords_pairs[i])
 
     segments = list()
 
@@ -60,11 +74,27 @@ if __name__ == '__main__':
     for i in range(num_segments):
         point_start = tuple(list (map (float, filter (non_blank, coords_pairs[i].split(' ')))))
         point_end   = tuple(list (map (float, filter (non_blank, coords_pairs[i+1].split(' ')))))
-        segments.append ((point_start, point_end))
+        
+        # calculate line koefficient in advance (y = kx+b, k -- tangent of incline, b -- indent)  
+        start_long = point_start[0]
+        start_lat  = point_start[1]
+        end_long   = point_end[0]
+        end_lat    = point_end[1]
 
-#    print ("\nsegments:")
-#    for i in range(num_segments):
-#        print ("seg", i, ": ", segments[i])
+        dy = (end_lat - start_lat)
+        dx = (end_long - start_long)
+        k = 0
+        b=0 
+        if (abs(dx) > EPS):
+          k = dy / dx
+          b = end_lat - end_long*k
+
+        segments.append ((point_start, point_end, k, b))
+
+    if debug:
+      print ("\nsegments:")
+      for i in range(num_segments):
+        print ("  ", i, ":", segments[i])
  
 
     # ==================================================================
@@ -72,12 +102,6 @@ if __name__ == '__main__':
     # ==================================================================
     points = [];
 
-#    file_points = open ("x_points_0.txt", 'r')   # a pair of GDC point a line
-#    file_points = open ("x_points_1.txt", 'r')   # a pair of GDC point a line
-#    file_points = open ("x_points_2.txt", 'r')   # a pair of GDC point a line
-#    file_points = open ("x_points_3.txt", 'r')   # a pair of GDC point a line
-#    file_points = open ("x_points_4.txt", 'r')   # a pair of GDC point a line
-    file_points = open ("x_points_500.txt", 'r')   # a pair of GDC point a line
     for line in file_points:
       point_lst = list (filter (non_blank, line.split('\t')))
       l_pnt = len(point_lst)
@@ -92,8 +116,11 @@ if __name__ == '__main__':
         
     num_points = len(points)
     print ("points to test:", num_points)
-#    for point in points:
-#        print (point)
+    if debug:
+      for point in points:
+        print ("  ", point)
+    time_loaded = time.time()
+    print ("time loaded: ", time_loaded - time_start, "sec.")
     
 
     # ==================================================================
@@ -112,7 +139,7 @@ if __name__ == '__main__':
     for point in (points):
         p_long = point[0]
         p_lat = point[1]
-#        print(point)
+        if debug: print(point)
       
         # For each point loop over the all segments.
         # I will drow a vertical line at this point longitude and count
@@ -124,8 +151,9 @@ if __name__ == '__main__':
         for s in range (num_segments):
             segment = segments[s]
 
-#            print ("s:", s, end=" ")        
+            if debug: print ("\ts:", s, end="")        
             if (s == skip_segment):  # hit vertex in the previos step and already counted or dismissed
+              if debug: print (" skip: ", skip_segment)
               skip_segment = -1
               cnt_skip += 1
               continue  
@@ -142,33 +170,38 @@ if __name__ == '__main__':
             if (((start_long < p_long) and (end_long < p_long)) or
                 ((start_long > p_long) and (end_long > p_long))):
               cnt_simple += 1
-#              print (" simple 1", end=" ")        
+              if debug: print (" simple-1")
               continue  
 
-            # 2. ignore segment which is completly up a given point
+            # 2. ignore segment which is completly above a given point
             if (start_lat > p_lat) and (end_lat > p_lat):
               cnt_simple += 1
-#              print (" simple 2", end=" ")        
+              if debug: print (" simple-2")        
               continue  
 
 
             # 3. count a segment if it is below a given point (it certainly will be crossed)
-            if (start_lat < p_lat) and (end_lat < p_lat):
+            if ((start_lat < p_lat) and (end_lat < p_lat) and
+                # exclude segments with vertices: they will be handled separately 
+                ((start_long < p_long) and (p_long < end_long) or
+                 (start_long > p_long) and (p_long > end_long))):
               cnt_simple += 1
               cnt_intersections += 1
-#              print (" simple 3", end=" ")
+              if debug: print (" simple-3 +")
               continue  
 
-            # if still "do_test", then a point is withing a rectangle with this segment as a diagonal,
-            # and we need to find out if this point's longitude line crosses this segment
+              
+            # if we're here, then a point is either withing a rectangle with this segment as a diagonal,
+            # or point's longitude is crossing the vertex.
+            # We need to find out if this point's longitude line crosses this segment
             # above (should be ignored) or below (should be counted) point's latitude
-
+ 
             # 4. I will assume we do cross a segment which is almost vertical;
             # this allows to avoid trigonometrical calculations issues later on
-            if (abs(start_long - end_long) < EPS):
+            if (abs(start_long - end_long) <= EPS):
               cnt_intersections += 1
               cnt_edge += 1
-#              print (" edge", end=" ")
+              if debug: print (" edge-vertical +")
               continue  
 
 
@@ -176,39 +209,130 @@ if __name__ == '__main__':
             #      (need to check both cases, since I don't know the direction I'm traversing the polygon)
             if (((start_long > p_long) and (end_long < p_long)) or
                 ((start_long < p_long) and (end_long > p_long))):
-          
-              #y = kx+b, k -- tangent of incline, b -- indent
-              dy = (end_lat - start_lat)
-              dx = (end_long - start_long)
-              k = dy / dx
-              b = end_lat - end_long*k
+              
+              k = segment[2]
+              b = segment[3]
+
               intersec_lat = k*p_long + b
+              if ((intersec_lat - EPS <= p_lat) and (intersec_lat + EPS >= p_lat)):  # a point is directly on the segment's edge
+                belongs = True
+                if debug: print (" edge-complex true")
+                cnt_complex += 1
+                break  
               if (intersec_lat <= p_lat):       # a point is either on the segment or "above" it
                 cnt_intersections += 1
+                if debug: print (" cross +")
+              else: 
+                if debug: print (" cross")
               cnt_complex += 1
+
+
+            # 6. intersection occurs EXACTLY on the vertex; 
+            #    this means that two adjacent segments must have 'p_long' as a longitude 
+            #    of their start or end point (i.e. "touch" p_long vertical line) 
+            else: 
+              
+              # a) quick check if the latitudes are the same
+              if (
+                # 
+                ((start_long == p_long) and (start_lat - EPS <= p_lat) and (start_lat + EPS >= p_lat))
+                  or 
+                ((end_long == p_long) and (end_lat - EPS <= p_lat) and (end_lat + EPS >= p_lat))):
+                belongs = True
+                cnt_vertex += 1
+                if debug: print (" vertex-true")        
+#                print ("start_lat", start_lat)        
+#                print ("end_lat", end_lat)        
+#                print ("p_lat", p_lat)        
+#                print ("EPS", EPS)        
+                break
+                  
+              # I will count vertex-intersection only if adjacent segments lie on different 
+              # sides of the p_long vertical line
+              
+              # b) Find adjacent segment: I don't know the direction I'm traversing 
+              #    the polygon, so it could be either previous or next one.
+              s_next = s + 1
+
+              s_prev = s - 1 
+              if (s == 0):                  # previous segment can be actually the last
+                s_prev = num_segments-1
+
+              # s_next != num_segments here: the last segment would have already be handled
+              # either along with segment[0] or previous one, so s_next is always valid;
+              if (s_next == num_segments):
+                cnt_vertex += 1
+                if debug: print (" vertex-uncheked")
+                break 
+              
+ 
+              # Choose the right one, both can't be touched at the same time.
+              # Note, it will be skipped on the next loop iteration
+              adj_segment = segments[s_next]
+              skip_segment = s_next
+
+              adj_start_long = adj_segment[0][0]
+              adj_start_lat  = adj_segment[0][1]
+              adj_end_long   = adj_segment[1][0]
+              adj_end_lat    = adj_segment[1][1]
+              if ((adj_start_long != p_long) and (adj_end_long != p_long)):
+                adj_segment  = segments[s_prev]
+                skip_segment = s_prev
+                adj_start_long = adj_segment[0][0] 
+                adj_end_long   = adj_segment[1][0]
+
               '''
-              print ("\n          dy:", dy)
-              print ("          dx:", dx)
-              print ("           k:", k)
-              print ("           b:", b)
-              print ("     int_lat:", intersec_lat)
+              touch_point = start_long
+              other_long = end_long
+              if (p_long = end_long):
+                touch_point = end_long
+                other_long = start_long
               '''
 
-            # 6. intersection occurs EXACTLY on the vertex 
-            else: 
-              # I will count vertex-intersection only if both left and right points 
-              # from the vicinity of a given point intersect left/right segments
+              # c) a touch occurs at the beginning of this segment
+#TODO: check if using the vicinity of the point makes more sense
+              if ((start_long == p_long) and (start_lat < p_lat)): 
+                # intersection occurs if the end of current segment lies 
+                # on the side opposit to the  adjacent segment
+                if (
+                    ((end_long > start_long) and (adj_start_long < start_long))
+                    or
+                    ((end_long < start_long) and (adj_start_long > start_long))):
+
+                  cnt_intersections += 1
+                  if debug: print (" vertex-start +")        
+                else:        
+                  if debug: print (" vertex-start")
+
+              # d) else intersection is at the end of this segment 
+              else:
+
+                if ((end_lat < p_lat) and
+                    (((end_long > start_long) and (adj_end_long >= end_long))
+                    or  
+                    ((end_long < start_long) and (adj_end_long <= end_long)))):
+                  cnt_intersections += 1
+                  if debug:
+                      print (" vertex-end +")
+
+                      print ("start_long", start_long)        
+                      print ("start_lat", start_lat)        
+                      print ("end_long", end_long)        
+                      print ("end_lat", end_lat)        
+                      print ("adj_start_long", adj_start_long)        
+                      print ("adj_end_long", adj_end_long)        
+                      print ("p_lat", p_lat)        
+                else:        
+                  if debug: print (" vertex-end")
+
               cnt_vertex += 1
-              skip_segment = s + 1                 # skip next segment
-              if (s == 0):
-                skip_segment = num_segments - 1
 
 #            print("s:", s, "st:", cnt_simple, "edge:", cnt_edge, "ct:", cnt_complex, "vertex:", cnt_vertex)
 
-            # final decision:
-            # if number of intersections even, then this point is outside of the polygon
+        # final decision:
+        # if number of intersections even, then this point is outside of the polygon
 #        print (" intr:", cnt_intersections, "div:", cnt_intersections % 2)
-        if (cnt_intersections % 2 == 1):
+        if (cnt_intersections % 2 == 1 or belongs):
           belongs = True
           cnt_included += 1
 
@@ -222,6 +346,9 @@ if __name__ == '__main__':
 #    for point in res_points:
 #      print(point) 
 
+    time_proc = time.time() - time_loaded
+    print ("time processed: ", time_proc, "sec.")
+
     #TODO: find a way to use filter
     print("\ndifferences:")
     cnt_diff = 0
@@ -233,7 +360,9 @@ if __name__ == '__main__':
     print("\nsimple tests: ", cnt_simple)
     print("over the edge:  ", cnt_edge)
     print("complex tests:  ", cnt_complex)
-    print("corners:        ", cnt_vertex)
+    print("vertices:       ", cnt_vertex)
     print("skipped:        ", cnt_skip)
-    print("points included:", cnt_included, " (", num_points, ")")
-    print("      different:", cnt_diff, " (", num_points, ")")
+    print("points included:", cnt_included, " ("+str(num_points)+ ")")
+    print("      different:", cnt_diff)
+    time_fin = time.time() - time_start
+    print("time finished:  ", time_fin, "sec.")
