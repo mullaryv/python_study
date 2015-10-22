@@ -35,9 +35,6 @@ if __name__ == '__main__':
     file_poly = open (sys.argv[1], 'r')
     file_points = open (sys.argv[2], 'r')
 
-#    file_poly = open ("polygon.wkt", 'r')
-#    file_points = open ("x_points_0.txt", 'r')
-
     debug = (args_len > 3) and (sys.argv[3] == "/d")
     # ==================================================================
     #                     create a list of segments                    
@@ -146,17 +143,12 @@ if __name__ == '__main__':
         # how many segments this line crosses BELOW point's latitude
         belongs = False
         cnt_intersections = 0
-        skip_segment = -1
-
+        LeftRight = 0 # -1 -- left, +1 -- right
+       
         for s in range (num_segments):
             segment = segments[s]
 
             if debug: print ("\ts:", s, end="")        
-            if (s == skip_segment):  # hit vertex in the previos step and already counted or dismissed
-              if debug: print (" skip: ", skip_segment)
-              skip_segment = -1
-              cnt_skip += 1
-              continue  
         
             # read GDC into individual numbers, I'll use them a lot
             start_long = segment[0][0]
@@ -188,7 +180,7 @@ if __name__ == '__main__':
                  (start_long > p_long) and (p_long > end_long))):
               cnt_simple += 1
               cnt_intersections += 1
-              if debug: print (" simple-3 +")
+              if debug: print (" simple +")
               continue  
 
               
@@ -204,17 +196,17 @@ if __name__ == '__main__':
                   or  
                   ((start_lat >= p_lat) and (p_lat >= end_lat))):
                 belongs = True
+                if debug: print (" edge-vertical +")
+                cnt_edge += 1
                 break
 #              cnt_intersections += 1
               cnt_edge += 1
-              if debug: print (" edge-vertical +")
+              if debug: print (" edge-vertical")
               continue  
    
 
             # 5. when intersection occurs NOT at the vertex:
             #      (need to check both cases, since I don't know the direction I'm traversing the polygon)
-#            if (((start_long > p_long) and (p_long > end_long)) or
-#                ((start_long < p_long) and (p_long < end_long))):
 
             if ((start_long != p_long) and (end_long != p_long)):
               
@@ -239,31 +231,17 @@ if __name__ == '__main__':
             #    this means that two adjacent segments must have 'p_long' as a longitude 
             #    of their start or end point (i.e. "touch" p_long vertical line) 
             else: 
-              '''
-              # a) quick check if the latitudes are the same
-              if (end_lat == p_lat):
-                belongs = True
-                cnt_vertex += 1
-                if debug: print (" vertex-on") 
-#TODO: can skip next here       
-#                print ("start_lat", start_lat)        
-#                print ("end_lat", end_lat)        
-#                print ("p_lat", p_lat)        
-#                print ("EPS", EPS)        
-                break
-              '''
             
               if (start_long == p_long):
-#                if (start_lat == p_lat):
-#                  if debug: print (" vertex-start") 
-#                  belongs = True
-#                  break  
+                if (start_lat == p_lat):
+                  if debug: print (" vertex-start") 
+                  belongs = True
+                  break  
                 continue
 
               # a) quick check if a point is below the vertex
               if (end_lat > p_lat):
                 if debug: print (" vertex-below") 
-#TODO: can skip next here       
                 cnt_vertex += 1
                 continue
 
@@ -273,11 +251,6 @@ if __name__ == '__main__':
                 belongs = True
                 cnt_vertex += 1
                 if debug: print (" vertex-on") 
-#TODO: can skip next here       
-#                print ("start_lat", start_lat)        
-#                print ("end_lat", end_lat)        
-#                print ("p_lat", p_lat)        
-#                print ("EPS", EPS)        
                 break
 
               # ... i.e. points latitude is above the end of the segment (vertex)
@@ -327,30 +300,30 @@ if __name__ == '__main__':
                 break
 
               # d) else intersection is at the end of this segment 
-              if (((p_long > start_long) and (p_long < adj_end_long))
-                  or  
-                  ((p_long < start_long) and (p_long > adj_end_long))):
-                  cnt_intersections += 1
-                  if debug:
-                      print (" vertex-end +")
+              if (p_long = start_long and (s != 0)):
+                if (p_long > start_long):
+                  LeftRight = 1
+                  if debug: print (" vertex-end: right")
+                  continue 
+                else:
+                  LeftRight = -1  
+                  if debug: print (" vertex-end: left")
+                  continue 
 
-                      print ("start_long", start_long)        
-                      print ("start_lat", start_lat)        
-                      print ("end_long", end_long)        
-                      print ("end_lat", end_lat)        
-                      print ("adj_start_long", adj_start_long)        
-                      print ("adj_end_long", adj_end_long)        
-                      print ("p_lat", p_lat)        
-              else:        
-                if debug: print (" vertex-end")
+ 
+              if (p_long > start_long):
+                LeftRight = 1
+                if debug: print (" vertex-end: right")
+                continue 
+              else:
+                LeftRight = -1  
+                if debug: print (" vertex-end: left")
+                continue 
 
               cnt_vertex += 1
 
-#            print("s:", s, "st:", cnt_simple, "edge:", cnt_edge, "ct:", cnt_complex, "vertex:", cnt_vertex)
-
         # final decision:
         # if number of intersections even, then this point is outside of the polygon
-#        print (" intr:", cnt_intersections, "div:", cnt_intersections % 2)
         if (cnt_intersections % 2 == 1 or belongs):
           belongs = True
           cnt_included += 1
@@ -361,10 +334,6 @@ if __name__ == '__main__':
       
     # for point in (points): -------------------------------------------
 
-
-#    print("\nresults:")
-#    for point in res_points:
-#      print(point) 
 
     time_proc = time.time() - time_loaded
     print ("time processed: ", time_proc, "sec.")
