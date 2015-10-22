@@ -166,13 +166,14 @@ if __name__ == '__main__':
         
             #first, few trivial tests if a vertical line certanly crosses or misses current segment
 
-            # 1. ignore segment which is completly on the left or right of a given point
+            # 1. ignore segments which are completly on the left or right of a point's latitude
             if (((start_long < p_long) and (end_long < p_long)) or
                 ((start_long > p_long) and (end_long > p_long))):
               cnt_simple += 1
               if debug: print (" simple-1")
               continue  
 
+              
             # 2. ignore segment which is completly above a given point
             if (start_lat > p_lat) and (end_lat > p_lat):
               cnt_simple += 1
@@ -196,19 +197,26 @@ if __name__ == '__main__':
             # We need to find out if this point's longitude line crosses this segment
             # above (should be ignored) or below (should be counted) point's latitude
  
-            # 4. I will assume we do cross a segment which is almost vertical;
+            # 4. I will ignore...
             # this allows to avoid trigonometrical calculations issues later on
             if (abs(start_long - end_long) <= EPS):
-              cnt_intersections += 1
+              if (((start_lat <= p_lat) and (p_lat <= end_lat))
+                  or  
+                  ((start_lat >= p_lat) and (p_lat >= end_lat))):
+                belongs = True
+                break
+#              cnt_intersections += 1
               cnt_edge += 1
               if debug: print (" edge-vertical +")
               continue  
-
+   
 
             # 5. when intersection occurs NOT at the vertex:
             #      (need to check both cases, since I don't know the direction I'm traversing the polygon)
-            if (((start_long > p_long) and (end_long < p_long)) or
-                ((start_long < p_long) and (end_long > p_long))):
+#            if (((start_long > p_long) and (p_long > end_long)) or
+#                ((start_long < p_long) and (p_long < end_long))):
+
+            if ((start_long != p_long) and (end_long != p_long)):
               
               k = segment[2]
               b = segment[3]
@@ -231,21 +239,48 @@ if __name__ == '__main__':
             #    this means that two adjacent segments must have 'p_long' as a longitude 
             #    of their start or end point (i.e. "touch" p_long vertical line) 
             else: 
-              
+              '''
               # a) quick check if the latitudes are the same
-              if (
-                # 
-                ((start_long == p_long) and (start_lat - EPS <= p_lat) and (start_lat + EPS >= p_lat))
-                  or 
-                ((end_long == p_long) and (end_lat - EPS <= p_lat) and (end_lat + EPS >= p_lat))):
+              if (end_lat == p_lat):
                 belongs = True
                 cnt_vertex += 1
-                if debug: print (" vertex-true")        
+                if debug: print (" vertex-on") 
+#TODO: can skip next here       
 #                print ("start_lat", start_lat)        
 #                print ("end_lat", end_lat)        
 #                print ("p_lat", p_lat)        
 #                print ("EPS", EPS)        
                 break
+              '''
+            
+              if (start_long == p_long):
+#                if (start_lat == p_lat):
+#                  if debug: print (" vertex-start") 
+#                  belongs = True
+#                  break  
+                continue
+
+              # a) quick check if a point is below the vertex
+              if (end_lat > p_lat):
+                if debug: print (" vertex-below") 
+#TODO: can skip next here       
+                cnt_vertex += 1
+                continue
+
+              
+              # a) quick check if the latitudes are the same
+              if (end_lat == p_lat):
+                belongs = True
+                cnt_vertex += 1
+                if debug: print (" vertex-on") 
+#TODO: can skip next here       
+#                print ("start_lat", start_lat)        
+#                print ("end_lat", end_lat)        
+#                print ("p_lat", p_lat)        
+#                print ("EPS", EPS)        
+                break
+
+              # ... i.e. points latitude is above the end of the segment (vertex)
                   
               # I will count vertex-intersection only if adjacent segments lie on different 
               # sides of the p_long vertical line
@@ -254,63 +289,47 @@ if __name__ == '__main__':
               #    the polygon, so it could be either previous or next one.
               s_next = s + 1
 
-              s_prev = s - 1 
-              if (s == 0):                  # previous segment can be actually the last
-                s_prev = num_segments-1
-
-              # s_next != num_segments here: the last segment would have already be handled
-              # either along with segment[0] or previous one, so s_next is always valid;
-              if (s_next == num_segments):
-                cnt_vertex += 1
-                if debug: print (" vertex-uncheked")
-                break 
-              
+              if (s_next == num_segments): s_next = 0
  
-              # Choose the right one, both can't be touched at the same time.
               # Note, it will be skipped on the next loop iteration
               adj_segment = segments[s_next]
               skip_segment = s_next
+
+              # check if next segment is vertical; if it is, I will just ignore it and go for the next one  
+              if (abs(adj_segment[0][0] - adj_segment[1][0]) <= EPS): #TODO: read from the list
+                cnt_edge += 1
+                s_next += 1
+                if (s_next == num_segments): s_next = 0
+                adj_segment = segments[s_next]
+                skip_segment = s_next
+                s += 1 
+                if debug: 
+                  print (" vertex-vertical")
+                  print ("     skip:", skip_segment)
+                  print ("     next:", s_next)
 
               adj_start_long = adj_segment[0][0]
               adj_start_lat  = adj_segment[0][1]
               adj_end_long   = adj_segment[1][0]
               adj_end_lat    = adj_segment[1][1]
-              if ((adj_start_long != p_long) and (adj_end_long != p_long)):
-                adj_segment  = segments[s_prev]
-                skip_segment = s_prev
-                adj_start_long = adj_segment[0][0] 
-                adj_end_long   = adj_segment[1][0]
 
-              '''
-              touch_point = start_long
-              other_long = end_long
-              if (p_long = end_long):
-                touch_point = end_long
-                other_long = start_long
-              '''
-
-              # c) a touch occurs at the beginning of this segment
 #TODO: check if using the vicinity of the point makes more sense
-              if ((start_long == p_long) and (start_lat < p_lat)): 
-                # intersection occurs if the end of current segment lies 
-                # on the side opposit to the  adjacent segment
-                if (
-                    ((end_long > start_long) and (adj_start_long < start_long))
-                    or
-                    ((end_long < start_long) and (adj_start_long > start_long))):
-
-                  cnt_intersections += 1
-                  if debug: print (" vertex-start +")        
-                else:        
-                  if debug: print (" vertex-start")
+              # a) quick check if the latitudes are the same
+              if (adj_start_lat == p_lat):
+                belongs = True
+                cnt_vertex += 1
+                if debug: print (" vertex-start +") 
+#TODO: can skip next here       
+#                print ("start_lat", start_lat)        
+#                print ("end_lat", end_lat)        
+#                print ("p_lat", p_lat)        
+#                print ("EPS", EPS)        
+                break
 
               # d) else intersection is at the end of this segment 
-              else:
-
-                if ((end_lat < p_lat) and
-                    (((end_long > start_long) and (adj_end_long >= end_long))
-                    or  
-                    ((end_long < start_long) and (adj_end_long <= end_long)))):
+              if (((p_long > start_long) and (p_long < adj_end_long))
+                  or  
+                  ((p_long < start_long) and (p_long > adj_end_long))):
                   cnt_intersections += 1
                   if debug:
                       print (" vertex-end +")
@@ -322,8 +341,8 @@ if __name__ == '__main__':
                       print ("adj_start_long", adj_start_long)        
                       print ("adj_end_long", adj_end_long)        
                       print ("p_lat", p_lat)        
-                else:        
-                  if debug: print (" vertex-end")
+              else:        
+                if debug: print (" vertex-end")
 
               cnt_vertex += 1
 
@@ -335,6 +354,7 @@ if __name__ == '__main__':
         if (cnt_intersections % 2 == 1 or belongs):
           belongs = True
           cnt_included += 1
+          if debug: print (" included")
 
         res_points.append((p_long, p_lat, point[2], belongs, cnt_intersections))
         # for segment in segments: -------------------------------------------
