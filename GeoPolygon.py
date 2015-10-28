@@ -278,9 +278,8 @@ if __name__ == '__main__':
         if ((LeftRight != 0) and (LeftRight + FirstLeftRight == 0)):
           cnt_intersections += 1
 
-        if (cnt_intersections % 2 == 1 or belongs):
-          belongs = True
-          if debug: print (" included")
+        belongs = belongs or (cnt_intersections % 2 == 1)
+        if debug: print (" included")
 
         res_points.append((p_long, p_lat, point[2], belongs, cnt_intersections))
         # for segment in segments: -------------------------------------------
