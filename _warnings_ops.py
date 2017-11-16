@@ -1,4 +1,5 @@
 import sys
+import operator
 
 # for formatting purposes (don't know a better way yet)
 BLANKS = "                                                               "
@@ -7,6 +8,7 @@ C_QUERY     = 0
 C_ATTRIBUTE = 1
 C_WCODE     = 2
 C_WARNING   = 3
+C_NONE      = 100 # secondary parameter for sort/rollup
 
 OUTPUT_LIMIT = 100     # output limit
 
@@ -37,7 +39,7 @@ def PrintStat (in_lst):
   lst = in_lst[0:num]
   max_len = FieldMaxLength (lst, 0)
   for arr in lst:
-    print (FormatField (arr[0], max_len), "    ", arr[1], "    ", arr[2])
+    print (FormatField (arr[0], max_len), "    ", arr[1], "    ", arr[2], "    ", arr[3])
   print()    
   return 0
 
@@ -46,42 +48,67 @@ def PrintStat (in_lst):
 def SortByLargest(item):
   return item[1]
 
-# rolls up and counts by desired field  
-def CountsBy (message, by) :
 
-  # sort by requested field  
+# rolls up and counts by desired field  
+def CountsBy (message, by, by2=C_NONE) :
+
+  # sort by requested component  
   def srtBy(item):
     return item[by]
   message.sort(key=srtBy)
+  if (by2 != C_NONE):
+    message.sort(key = operator.itemgetter(by, by2))
+
+  #for arr in (message): print (arr)
 
   size = len (message)
   by_field = list()
+  
   cnt = 0
-  current_field = ""
-  field = ""
+  m = message[0]
+  warn =  m[C_WARNING]
+  current_field = m[by]
+  current_field2 = ''
+  if (by2 != C_NONE): current_field2 = m[by2]
 
-  # roll up by query name
+
+  # roll up by requested component(s)
   for arr in message:
     field = arr[by]
+    field2 = ''
+    if (by2 != C_NONE): field2 = arr[by2]
 
-    if (current_field == ""):  # in the first run
-      current_field = field 
-      cnt = 1
-      continue
+    is_same = (field == current_field) and (field2 == current_field2)
+    #print (is_same)
 
-    if (field == current_field):
+    #if (field == current_field):
+    if (is_same):
       cnt = cnt + 1
+      continue
     else:
-      print (arr[C_WARNING][0:30])
-      if (by == C_WCODE):
-        by_field.append ([current_field, cnt, arr[C_WARNING][0:30]])
-      else:
-        by_field.append ([current_field, cnt, '.'])
+      if (by == C_QUERY): by_field.append ([current_field, cnt, '', ''])
+      if (by == C_WCODE): by_field.append ([current_field, cnt, warn, ''])
+      if (by == C_WARNING): by_field.append ([current_field, cnt, '', ''])
+      if (by == C_ATTRIBUTE):
+        if (by2 != C_NONE):
+          by_field.append ([current_field, cnt, current_field2, warn])
+        else:
+          by_field.append ([current_field, cnt, '',''])
       current_field = field 
       cnt = 1
+      warn = arr[C_WARNING]
+      current_field2 = field2
+
 
   # add the last one
-  by_field.append ([current_field, cnt, '.'])
+  if (by == C_QUERY): by_field.append ([current_field, cnt, '', ''])
+  if (by == C_WCODE): by_field.append ([current_field, cnt, warn, ''])
+  if (by == C_WARNING): by_field.append ([current_field, cnt, '', ''])
+  if (by == C_ATTRIBUTE):
+    if (by2 != C_NONE):
+      by_field.append ([current_field, cnt, current_field2, warn])
+    else:
+      by_field.append ([current_field, cnt, warn,''])
 
   by_field.sort(key=SortByLargest, reverse=True)
 
@@ -105,56 +132,51 @@ warnings = list()  #to keep all the warnings along with a query name
 query_name = "";
 
 for line in fin:
+  #print (line)
   # check if new query begins here
-  i_query = line.find("Processing ", 1)
+  i_query = line.find("Processing ", 0)
   if (i_query >= 0):
     query_name = line[i_query+11:].strip()
+    #print (query_name)
 
   # check if it is a warning
-  # i_eclserver = line.find("eclserver: ", 1)
-  i_eclserver = line.find("eclcc: ", 1)
+  i_eclserver = line.find("eclcc: ", 0)
   if (i_eclserver >= 0):
     ecl_warn = line.strip()
     components = ecl_warn.split (": ")
     attribute = components[1]
+
+    # clean attribute name
+    i_commit = attribute.find("}/", 0)
+    if (i_commit > 0):
+      attribute = attribute[i_commit+2:]
+    i_par = attribute.find("(", 0)
+    if (i_par > 0):
+      attribute = attribute[0:i_par]
+
     code = components[2]
     comment = components[3]
+    if (len (components) > 4):
+      comment = components[3] + components[4]
+    comment = FormatField (comment, 60)
     warnings.append ([query_name, attribute, code, comment])  # array of components
 
 
-for arr in (warnings):
-  print (arr)
+#for arr in (warnings): print (arr)
 #print()  
 
  
 # =================================================================
 # ============================= stat  =============================
 # =================================================================
-
 print ("------------ Warnings per query ------------")
 by_query = CountsBy (warnings, C_QUERY)
 PrintStat (by_query)
-'''
-
-  
-print ("------------ Warnings per instance of ECL code ------------")
-by_ecl = CountsBy (warnings, C_ATTRIBUTE)
-PrintStat (by_ecl)
-
 
 
 print ("------------ Warnings per attribute ------------")
-w_attr = list()
-for component in (warnings):
-  attr = component[C_ATTRIBUTE]
-  ind_par = attr.find("(", 1)
-  if ind_par > 0:
-    component[C_ATTRIBUTE] = attr[0:ind_par] 
-    w_attr.append (component)
-
-by_attribute = CountsBy (w_attr, C_ATTRIBUTE)
+by_attribute = CountsBy (warnings, C_ATTRIBUTE)
 PrintStat (by_attribute)
-'''
 
 
 print ("------------ Most frequent warnings ------------")
@@ -162,7 +184,11 @@ by_wcode = CountsBy (warnings, C_WCODE)
 PrintStat (by_wcode)
 
 
-'''
+print ("------------ Most frequent instance of a warning in ECL file ------------")
+by_ecl = CountsBy (warnings, C_ATTRIBUTE, C_WCODE)
+PrintStat (by_ecl)
+
+
 print ("------------ Indices causing most warnings ------------")
 w_index = list()
 for component in (warnings):
@@ -172,14 +198,10 @@ for component in (warnings):
     component[C_WARNING] = attr[ind_tilda:]
     w_index.append (component)
 
+#for arr in (w_index):  print (arr)
+
 by_index = CountsBy (w_index, C_WARNING)
 PrintStat (by_index)
 
+
 #printStat (w_index)
-
-
-#mlen = FieldMaxLength(warnings, C_QUERY)
-#print (mlen)
-#print ("[", FormatField ("asdfg", mlen), "]")
-#print (FormatField ("asdfg", mlen),"]")
-'''

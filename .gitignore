@@ -1,6 +1,12 @@
+.gitignore
+
+*.txt
+*.err
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
+queries.err
 
 # Folder config file
 Desktop.ini
